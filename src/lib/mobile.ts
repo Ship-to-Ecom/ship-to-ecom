@@ -45,15 +45,5 @@ export function withUser(handler: (user: User, req: Request) => Promise<Response
   };
 }
 
-// Giriş denemesi sınırı (bellekte; tek sunucu örneği varsayar): 15 dakikada 8 başarısız deneme.
-const fails = new Map<string, { n: number; until: number }>();
-export function loginBlocked(key: string) {
-  const f = fails.get(key);
-  if (f && f.until < Date.now()) fails.delete(key);
-  return (fails.get(key)?.n ?? 0) >= 8;
-}
-export function loginFailed(key: string) {
-  const f = fails.get(key);
-  fails.set(key, { n: (f?.n ?? 0) + 1, until: Date.now() + 15 * 60_000 });
-}
-export const loginOk = (key: string) => void fails.delete(key);
+// Giriş denemesi sınırı web girişiyle ortak: src/lib/throttle.ts
+export { loginBlocked, loginFailed, loginOk } from "./throttle";

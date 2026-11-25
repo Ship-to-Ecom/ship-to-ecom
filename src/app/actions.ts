@@ -3,6 +3,7 @@
 import { assertModule, hasModule } from "@/lib/access";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { encrypt, randomToken } from "@/lib/crypto";
 import { invalidateUser } from "@/lib/cache";
@@ -11,6 +12,7 @@ import { TRIAL_DAYS, hasBiggerPlan, planById, storeLimitOf } from "@/lib/plans";
 import { fetchToken, normalizeStoreName, registerWebhooks } from "@/lib/ikas";
 import { createSession, destroySession, requireUser } from "@/lib/session";
 import { syncUser } from "@/lib/sync";
+import { clientIp, loginBlocked, loginFailed, loginOk, overLimit } from "@/lib/throttle";
 
 // Mağaza bağlama ve yönetimi Entegrasyonlar sayfasında.
 const STORES = "/entegrasyonlar";
@@ -23,6 +25,8 @@ export async function register(fd: FormData) {
   const password = String(fd.get("password") ?? "");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) back("/kayit", "hata", "Geçerli bir e-posta girin.");
   if (password.length < 8) back("/kayit", "hata", "Şifre en az 8 karakter olmalı.");
+  // Toplu hesap açmaya karşı: IP başına saatte 5 kayıt denemesi.
+  if (overLimit(`kayit:${clientIp(await headers())}`, 5, 3600_000)) back("/kayit", "hata", "Çok fazla kayıt denemesi. Bir saat sonra yeniden deneyin.");
   if (await db.user.findUnique({ where: { email } })) back("/kayit", "hata", "Bu e-posta zaten kayıtlı.");
   const plan = planById(str(fd, "paket"))?.id ?? "baslangic";
   const user = await db.user.create({
@@ -38,9 +42,15 @@ export async function register(fd: FormData) {
 
 export async function login(fd: FormData) {
   const email = str(fd, "email").toLowerCase();
+  const ip = clientIp(await headers());
+  if (loginBlocked(email, ip)) back("/giris", "hata", "Çok fazla hatalı deneme. 15 dakika sonra yeniden deneyin.");
   const user = await db.user.findUnique({ where: { email } });
   const ok = user && (await bcrypt.compare(String(fd.get("password") ?? ""), user.passwordHash));
-  if (!user || !ok) back("/giris", "hata", "E-posta veya şifre hatalı.");
+  if (!user || !ok) {
+    loginFailed(email, ip);
+    back("/giris", "hata", "E-posta veya şifre hatalı.");
+  }
+  loginOk(email);
   if (user!.suspended) back("/giris", "hata", "Hesabınız askıya alınmış. Destek ile iletişime geçin.");
   await createSession(user!.id);
   redirect("/panel");

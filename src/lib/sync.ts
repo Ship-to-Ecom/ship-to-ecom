@@ -10,12 +10,14 @@ import { notify, type NewNotification } from "./notify";
 import { allocate, reconcile } from "./reconcile";
 import { loadCosts, snapshotFor, trackBuyPrices } from "./finance/costs";
 import { ingestReturns } from "./finance/ingest";
+import { processState } from "./process-state";
 
 // Aynı kullanıcı için eşzamanlı iki senkron çalışmaz. Çalışırken gelen istek,
 // bittikten sonra bir tur daha çalıştırır. (Tek sunucu örneği varsayar; birden fazla
 // örnekle yayına alınırsa veritabanı kilidine çevrilmeli.)
-const running = new Map<string, Promise<void>>();
-const rerun = new Set<string>();
+// Kilit süreç genelinde tektir (webhook, cron ve panel aynı kilidi görür): src/lib/process-state.ts
+const running = processState("sync:running", () => new Map<string, Promise<void>>());
+const rerun = processState("sync:rerun", () => new Set<string>());
 
 export function syncUser(userId: string): Promise<void> {
   const active = running.get(userId);

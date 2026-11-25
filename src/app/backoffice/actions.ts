@@ -2,10 +2,12 @@
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { safeEqual } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { planById } from "@/lib/plans";
+import { clientIp, failBlocked, failClear, failRecord, overLimit } from "@/lib/throttle";
 import { createAdminSession, destroyAdminSession, requireAdmin } from "@/lib/session";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -14,6 +16,8 @@ const go = (path: string, key: "hata" | "ok", msg: string): never => redirect(`$
 /** İlk yönetici hesabını oluşturur; yalnızca hiç yönetici yokken ve .env'deki kurulum anahtarıyla çalışır. */
 export async function adminSetup(fd: FormData) {
   if (await db.admin.count()) go("/backoffice/giris", "hata", "Yönetici hesabı zaten var.");
+  // Kurulum anahtarını tahmin etmeye karşı: IP başına saatte 5 deneme.
+  if (overLimit(`yonetici-kurulum:${clientIp(await headers())}`, 5, 3600_000)) go("/backoffice/giris", "hata", "Çok fazla deneme. Bir saat sonra yeniden deneyin.");
   const key = process.env.ADMIN_SETUP_KEY ?? "";
   if (!key || !safeEqual(key, str(fd, "key"))) go("/backoffice/giris", "hata", "Kurulum anahtarı hatalı.");
   const email = str(fd, "email").toLowerCase();
@@ -26,9 +30,18 @@ export async function adminSetup(fd: FormData) {
 }
 
 export async function adminLogin(fd: FormData) {
-  const admin = await db.admin.findUnique({ where: { email: str(fd, "email").toLowerCase() } });
+  const email = str(fd, "email").toLowerCase();
+  const ip = clientIp(await headers());
+  // Yönetici girişi daha sıkı: e-posta başına 5, IP başına 10 hata; 30 dakika kilit.
+  if (failBlocked(`yonetici:${email}`, 5) || failBlocked(`yonetici-ip:${ip}`, 10)) go("/backoffice/giris", "hata", "Çok fazla hatalı deneme. 30 dakika sonra yeniden deneyin.");
+  const admin = await db.admin.findUnique({ where: { email } });
   const ok = admin && (await bcrypt.compare(String(fd.get("password") ?? ""), admin.passwordHash));
-  if (!admin || !ok) go("/backoffice/giris", "hata", "E-posta veya şifre hatalı.");
+  if (!admin || !ok) {
+    failRecord(`yonetici:${email}`, 30);
+    failRecord(`yonetici-ip:${ip}`, 30);
+    go("/backoffice/giris", "hata", "E-posta veya şifre hatalı.");
+  }
+  failClear(`yonetici:${email}`);
   await createAdminSession(admin!.id);
   redirect("/backoffice");
 }

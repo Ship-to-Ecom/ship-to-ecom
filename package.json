@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types scripts/test-reconcile.ts && node --experimental-strip-types scripts/test-insights.ts && node --experimental-strip-types scripts/test-finance.ts",
+    "test": "node --experimental-strip-types scripts/test-reconcile.ts && node --experimental-strip-types scripts/test-insights.ts && node --experimental-strip-types scripts/test-finance.ts && node --experimental-strip-types scripts/test-throttle.ts",
     "mock": "node scripts/mock-ikas.mjs",
     "postinstall": "prisma generate"
   },

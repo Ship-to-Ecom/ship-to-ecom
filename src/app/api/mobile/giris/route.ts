@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { apiError, createMobileToken, loginBlocked, loginFailed, loginOk } from "@/lib/mobile";
 import { planById } from "@/lib/plans";
+import { clientIp } from "@/lib/throttle";
 
 // POST { email, password } → { token, kullanici }
 export async function POST(req: Request) {
@@ -9,10 +10,11 @@ export async function POST(req: Request) {
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
   if (!email || !password) return apiError(400, "E-posta ve şifre gerekli.");
-  if (loginBlocked(email)) return apiError(429, "Çok fazla hatalı deneme. 15 dakika sonra yeniden deneyin.");
+  const ip = clientIp(req.headers);
+  if (loginBlocked(email, ip)) return apiError(429, "Çok fazla hatalı deneme. 15 dakika sonra yeniden deneyin.");
   const user = await db.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    loginFailed(email);
+    loginFailed(email, ip);
     return apiError(401, "E-posta veya şifre hatalı.");
   }
   if (user.suspended) return apiError(403, "Hesabınız askıya alınmış. Destek ile iletişime geçin.");

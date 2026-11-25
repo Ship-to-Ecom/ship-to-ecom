@@ -5,9 +5,11 @@ import type { Store } from "@prisma/client";
 import { db } from "../db";
 import { listProductMeta } from "../ikas";
 import { imageUrl } from "../pricing";
+import { processState } from "../process-state";
 
 const STALE_MS = 6 * 3600_000;
-const running = new Map<string, Promise<number>>();
+// Eşzamanlı iki yenileme birbirinin kayıtlarını silmesin diye kilit süreç genelinde tektir.
+const running = processState("catalog:running", () => new Map<string, Promise<number>>());
 
 /** ProductMeta'yı ikas'tan yeniler (aynı mağaza için eşzamanlı tek istek). Dönen: ürün sayısı. */
 export function refreshProductMeta(store: Store): Promise<number> {
