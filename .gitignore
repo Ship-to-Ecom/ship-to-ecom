@@ -41,7 +41,6 @@ yarn-error.log*
 next-env.d.ts
 !.env.example
 /prisma/*.db*
-/prisma/schema.postgres.prisma
 .next-test
 
 # Expo yerel durum (cihaz bilgisi)
