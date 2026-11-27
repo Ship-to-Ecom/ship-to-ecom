@@ -87,6 +87,8 @@ Geliştirmede uygulama, Expo'nun çalıştığı bilgisayarın 3000 portundaki p
 
 ## Yayına almadan önce
 
-- `prisma/schema.prisma` içinde `provider = "postgresql"` yapın.
+- Veritabanı: `DATABASE_URL` bir PostgreSQL adresi (`postgresql://...`) olmalı. `scripts/db.mjs` sağlayıcıyı kendisi değiştirir; `npm start` açılışta tabloları `prisma db push` ile oluşturur (veri kaybı gerektiren değişiklikte durur). Şemayı elle değiştirmeyin; yerelde SQLite kalır.
+- Zorunlu ortam değişkenleri: `DATABASE_URL`, `APP_SECRET`, `APP_URL`, `CRON_SECRET`, `ADMIN_SETUP_KEY`. Ayrı cron servisi yoksa `INTERNAL_CRON_MINUTES=10` uygulama içinden `/api/cron/sync`'i çağırır.
+- Teşhis: `/api/durum` veritabanı bağlantısını ve tabloları denetler (gizli değer döndürmez).
 - `APP_URL` https adresi olmalı; sonra Mağazalar ekranından "Webhook kur".
 - Gerçek bir ikas test mağazasında doğrulanacaklar: `saveProductStockLocations` mutlak değer mi yazıyor, webhook imza başlığı, sipariş durum değerleri, ürün eklemede varyant tipi `selectionType: "CHOICE"` değeri ve görsel yükleme; görsel CDN adresi kalıbı (`cdn.myikas.com/images/{merchantId}/{imageId}/image_180.webp`), `saveVariantPrices` ile indirimli fiyatın `null` gönderilerek kaldırılması, kampanya girdisi.
