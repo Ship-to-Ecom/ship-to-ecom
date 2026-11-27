@@ -58,6 +58,7 @@ export default async function Page() {
             <a href="#vitrin" className="hover:text-gray-900">Vitrin modülleri</a>
             <a href="#paketler" className="hover:text-gray-900">Paketler</a>
             <a href="#sss" className="hover:text-gray-900">SSS</a>
+            <Link href="/destek" className="hover:text-gray-900">Destek</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             {loggedIn ? (
@@ -265,7 +266,10 @@ export default async function Page() {
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
           <Logo />
           <span>© ShipToEcom. Adı geçen e-ticaret altyapıları kendi sahiplerinin markasıdır; ShipToEcom bağımsız bir üründür.</span>
-          <Link href="/giris" className="font-medium text-indigo-600 hover:underline">Giriş yap</Link>
+          <div className="flex gap-4">
+            <Link href="/destek" className="font-medium text-indigo-600 hover:underline">Destek makaleleri</Link>
+            <Link href="/giris" className="font-medium text-indigo-600 hover:underline">Giriş yap</Link>
+          </div>
         </div>
       </footer>
     </div>
